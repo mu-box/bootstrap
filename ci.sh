@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Boostraps a CI server to run tests or deploy an app with Nanobox
+# Boostraps a CI server to run tests or deploy an app with Microbox
 #
-# sudo bash -c "$(curl -fsSL https://s3.amazonaws.com/tools.nanobox.io/bootstrap/ci.sh)"
+# bash -c "$(curl -fsSL https://s3.amazonaws.com/tools.microbox.cloud/bootstrap/ci.sh)"
 
 # run_as_root
 run_as_root() {
@@ -22,14 +22,18 @@ run_as_user() {
   fi
 }
 
+arch() {
+  dpkg --print-architecture
+}
+
 docker_defaults() {
   echo 'DOCKER_OPTS="--iptables=false --storage-driver=aufs"'
 }
 
 # 1 - Install and run docker
-# 2 - Download nanobox
-# 3 - Chown nanobox
-# 4 - Set Nanobox configuration
+# 2 - Download microbox
+# 3 - Chown microbox
+# 4 - Set Microbox configuration
 
 # 1 - Install Docker
 #
@@ -39,27 +43,27 @@ docker_defaults() {
 
 if [[ ! -f /usr/bin/docker ]]; then
   # add docker"s gpg key
-  run_as_root "apt-key adv \
-    --keyserver hkp://p80.pool.sks-keyservers.net:80 \
-    --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+  run_as_root "mkdir -m 0755 -p /etc/apt/keyrings"
+  run_as_root "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
 
   # ensure lsb-release is installed
   which lsb_release || run_as_root "apt-get -y install lsb-release"
 
+  version=$(lsb_release -rs)
   release=$(lsb_release -cs)
-  
+
   [ -f /usr/lib/apt/methods/https ] || run_as_root "apt-get -y install apt-transport-https"
 
   # add the source to our apt sources
   run_as_root "echo \
-    \"deb https://apt.dockerproject.org/repo ubuntu-${release} main\" \
+    \"deb [arch=$(arch) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${release} main\" \
       > /etc/apt/sources.list.d/docker.list"
 
   # update the package index
   run_as_root "apt-get -y update"
 
   # ensure the old repo is purged
-  run_as_root "apt-get -y purge lxc-docker docker-engine"
+  run_as_root "apt-get -y purge docker docker-engine docker.io containerd runc"
 
   # set docker defaults
   run_as_root "echo $(docker_defaults) > /etc/default/docker"
@@ -70,7 +74,7 @@ if [[ ! -f /usr/bin/docker ]]; then
       -o Dpkg::Options::=\"--force-confdef\" \
       -o Dpkg::Options::=\"--force-confold\" \
       install \
-      docker-engine=1.12.6-0~ubuntu-${release}"
+      docker-engine=23.0.3-1~ubuntu.${version}~${release}"
 
   # allow user to use docker without sudo needs to be conditional
   run_as_root "groupadd docker"
@@ -78,19 +82,19 @@ if [[ ! -f /usr/bin/docker ]]; then
   run_as_root "usermod -aG docker $REAL_USER"
 fi
 
-# 2 - Download nanobox
+# 2 - Download microbox
 run_as_root "curl \
   -f \
   -k \
-  -o /usr/local/bin/nanobox \
-  https://s3.amazonaws.com/tools.nanobox.io/nanobox/v2/linux/amd64/nanobox"
+  -o /usr/local/bin/microbox \
+  https://s3.amazonaws.com/tools.microbox.cloud/microbox/v2/linux/$(arch)/microbox"
 
-# 3 - Chown nanobox
-run_as_root "chmod +x /usr/local/bin/nanobox"
+# 3 - Chown microbox
+run_as_root "chmod +x /usr/local/bin/microbox"
 
-# 4 - Set nanobox configuration
-run_as_user "nanobox config set ci-mode true"
+# 4 - Set microbox configuration
+run_as_user "microbox config set ci-mode true"
 
-run_as_user "nanobox config set provider native"
+run_as_user "microbox config set provider native"
 
-echo "Nanobox is ready to go!"
+echo "Microbox is ready to go!"

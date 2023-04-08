@@ -1,2 +1,2 @@
 # bootstrap
-Collection of scripts used to bootstrap a nanobox host machine.
+Collection of scripts used to bootstrap a Microbox host machine.

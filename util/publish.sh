@@ -21,15 +21,15 @@ done
 echo "Uploading builds to s3..."
 aws s3 sync \
   $project_dir/.build/ \
-  s3://tools.nanobox.io/bootstrap \
+  s3://tools.microbox.cloud/bootstrap \
   --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers \
   --region us-east-1
 
-echo "Creating invalidation for cloudfront"
-aws  configure  set preview.cloudfront true
-aws cloudfront create-invalidation \
-  --distribution-id E1O0D0A2DTYRY8 \
-  --paths /bootstrap
+# echo "Creating invalidation for cloudfront"
+# aws  configure  set preview.cloudfront true
+# aws cloudfront create-invalidation \
+#   --distribution-id E1O0D0A2DTYRY8 \
+#   --paths /bootstrap
 
 echo "Cleaning..."
 rm -rf $project_dir/.build

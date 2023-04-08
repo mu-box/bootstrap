@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Boostraps an ubuntu machine to be used as an agent for nanobox
+# Boostraps an ubuntu machine to be used as an agent for microbox
 
 # exit if any any command fails
 set -e
@@ -23,6 +23,10 @@ wait_for_lock() {
   while fuser /var/lib/dpkg/lock /var/lib/apt/lists/lock >/dev/null 2>&1 ; do
     sleep 1
   done
+}
+
+arch() {
+  dpkg --print-architecture
 }
 
 init_system() {
@@ -105,7 +109,7 @@ fix_iface_name() {
   fi
 }
 
-# install version of docker nanoagent is using
+# install version of docker microagent is using
 install_docker() {
 
   # update the package index
@@ -115,11 +119,12 @@ install_docker() {
   # ensure lsb-release is installed
   which lsb_release || ( wait_for_lock; apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -y install lsb-release )
 
+  version=$(lsb_release -rs)
   release=$(lsb_release -cs)
 
   echo '   -> fetch docker'
-  time wget -O /tmp/docker-ce_18.03.0.deb \
-    https://download.docker.com/linux/ubuntu/dists/${release}/pool/stable/amd64/docker-ce_18.03.0~ce-0~ubuntu_amd64.deb
+  time wget -O /tmp/docker-ce_23.0.3.deb \
+    https://download.docker.com/linux/ubuntu/dists/${release}/pool/stable/$(arch)/docker-ce_23.0.3-1~ubuntu.${version}~${release}_$(arch).deb
 
   # ensure the old repo is purged
   echo '   -> remove old docker'
@@ -136,7 +141,7 @@ install_docker() {
 
   #   # get aufs kernel module
   #   wget -qq -O /lib/modules/$(uname -r)/kernel/fs/aufs/aufs.ko \
-  #   https://s3.amazonaws.com/tools.nanobox.io/aufs-kernel/$(uname -r)-aufs.ko || \
+  #   https://s3.amazonaws.com/tools.microbox.cloud/aufs-kernel/$(uname -r)-aufs.ko || \
   #   ( wait_for_lock; sudo apt-get install -y linux-image-extra-$(uname -r) linux-image-extra-virtual )
   # fi
 
@@ -162,7 +167,7 @@ END
 
   # install docker
   echo '   -> install docker'
-  time ( wait_for_lock; dpkg --force-confdef --force-confold -i /tmp/docker-ce_18.03.0.deb || apt-get install -yf )
+  time ( wait_for_lock; dpkg --force-confdef --force-confold -i /tmp/docker-ce_23.0.3.deb || apt-get install -yf )
 }
 
 start_docker() {
@@ -184,12 +189,12 @@ start_docker() {
 }
 
 install_red() {
-  if [[ ! -f /tmp/redd_1.0.0-1_amd64.deb ]]; then
+  if [[ ! -f /tmp/redd_1.0.0-1_$(arch).deb ]]; then
     # fetch packages
-    wget -O /tmp/libbframe_1.0.0-1_amd64.deb https://d1qjolj82nwh57.cloudfront.net/deb/libbframe_1.0.0-1_amd64.deb
-    wget -O /tmp/libmsgxchng_1.0.0-1_amd64.deb https://d1qjolj82nwh57.cloudfront.net/deb/libmsgxchng_1.0.0-1_amd64.deb
-    wget -O /tmp/red_1.0.0-1_amd64.deb https://d1qjolj82nwh57.cloudfront.net/deb/red_1.0.0-1_amd64.deb
-    wget -O /tmp/redd_1.0.0-1_amd64.deb https://d1qjolj82nwh57.cloudfront.net/deb/redd_1.0.0-1_amd64.deb
+    wget -O /tmp/libbframe_1.0.0-1_$(arch).deb https://s3.amazonaws.com/tools.microbox.cloud/deb/libbframe_1.0.0-1_$(arch).deb
+    wget -O /tmp/libmsgxchng_1.0.0-1_$(arch).deb https://s3.amazonaws.com/tools.microbox.cloud/deb/libmsgxchng_1.0.0-1_$(arch).deb
+    wget -O /tmp/red_1.0.0-1_$(arch).deb https://s3.amazonaws.com/tools.microbox.cloud/deb/red_1.0.0-1_$(arch).deb
+    wget -O /tmp/redd_1.0.0-1_$(arch).deb https://s3.amazonaws.com/tools.microbox.cloud/deb/redd_1.0.0-1_$(arch).deb
   fi
 
   # install dependencies
@@ -197,10 +202,10 @@ install_red() {
 
   if [[ ! -f /usr/bin/redd ]]; then
     # install packages
-    dpkg -i /tmp/libbframe_1.0.0-1_amd64.deb
-    dpkg -i /tmp/libmsgxchng_1.0.0-1_amd64.deb
-    dpkg -i /tmp/red_1.0.0-1_amd64.deb
-    dpkg -i /tmp/redd_1.0.0-1_amd64.deb
+    dpkg -i /tmp/libbframe_1.0.0-1_$(arch).deb
+    dpkg -i /tmp/libmsgxchng_1.0.0-1_$(arch).deb
+    dpkg -i /tmp/red_1.0.0-1_$(arch).deb
+    dpkg -i /tmp/redd_1.0.0-1_$(arch).deb
   fi
 
   # configure redd
@@ -218,10 +223,10 @@ install_red() {
   fi
 
   # remove cruft
-  rm -f /tmp/libbframe_1.0.0-1_amd64.deb
-  rm -f /tmp/libmsgxchng_1.0.0-1_amd64.deb
-  rm -f /tmp/red_1.0.0-1_amd64.deb
-  rm -f /tmp/redd_1.0.0-1_amd64.deb
+  rm -f /tmp/libbframe_1.0.0-1_$(arch).deb
+  rm -f /tmp/libmsgxchng_1.0.0-1_$(arch).deb
+  rm -f /tmp/red_1.0.0-1_$(arch).deb
+  rm -f /tmp/redd_1.0.0-1_$(arch).deb
 }
 
 start_redd() {
@@ -255,14 +260,14 @@ install_nfsutils() {
 }
 
 create_docker_network() {
-  if [[ ! `docker network ls | grep nanobox` ]]; then
+  if [[ ! `docker network ls | grep microbox` ]]; then
     # create a docker network
     docker network create \
       --driver=bridge --subnet=192.168.0.0/16 \
       --opt="com.docker.network.driver.mtu=${MTU}" \
       --opt="com.docker.network.bridge.name=redd0" \
       --gateway=${VIP} \
-      nanobox
+      microbox
   fi
 }
 
@@ -298,82 +303,82 @@ start_vxlan_bridge() {
   fi
 }
 
-install_nanoagent() {
-  # ensure the nanoagent service is stopped
+install_microagent() {
+  # ensure the microagent service is stopped
   running="false"
   if [[ "$(init_system)" = "systemd" ]]; then
-    if [[ `service nanoagent status | grep "active (running)"` ]]; then
+    if [[ `service microagent status | grep "active (running)"` ]]; then
       running="true"
     fi
   elif [[ "$(init_system)" = "upstart" ]]; then
-    if [[ `service nanoagent status | grep start/running` ]]; then
+    if [[ `service microagent status | grep start/running` ]]; then
       running="true"
     fi
   fi
   if [[ $running = "false" ]]; then
-    # download nanoagent
+    # download microagent
     curl \
       -f \
       -k \
-      -o /usr/local/bin/nanoagent \
-      https://d1ormdui8qdvue.cloudfront.net/nanoagent/linux/amd64/nanoagent-v2
+      -o /usr/local/bin/microagent \
+      https://s3.amazonaws.com/tools.microbox.cloud/microagent/linux/$(arch)/microagent-v2
 
     # update permissions
-    chmod 755 /usr/local/bin/nanoagent
+    chmod 755 /usr/local/bin/microagent
 
     # download md5
-    mkdir -p /var/nanobox
+    mkdir -p /var/microbox
     curl \
       -f \
       -k \
-      -o /var/nanobox/nanoagent.md5 \
-      https://d1ormdui8qdvue.cloudfront.net/nanoagent/linux/amd64/nanoagent-v2.md5
+      -o /var/microbox/microagent.md5 \
+      https://s3.amazonaws.com/tools.microbox.cloud/microagent/linux/$(arch)/microagent-v2.md5
 
-    if [[ "$(cat /var/nanobox/nanoagent.md5)" != "$(md5sum /usr/local/bin/nanoagent | cut -f1 -d' ')" ]]; then
-      echo "nanoagent MD5s do not match!";
+    if [[ "$(cat /var/microbox/microagent.md5)" != "$(md5sum /usr/local/bin/microagent | cut -f1 -d' ')" ]]; then
+      echo "microagent MD5s do not match!";
       exit 1;
     fi
 
     # create db
-    mkdir -p /var/db/nanoagent
+    mkdir -p /var/db/microagent
 
     # generate config file
-    mkdir -p /etc/nanoagent
-    echo "$(nanoagent_json)" > /etc/nanoagent/config.json
+    mkdir -p /etc/microagent
+    echo "$(microagent_json)" > /etc/microagent/config.json
 
     # create init script
     if [[ "$(init_system)" = "systemd" ]]; then
-      echo "View logs with 'journalctl -fu nanoagent'">> /var/log/nanoagent.log
-      echo "$(nanoagent_systemd_conf)" > /etc/systemd/system/nanoagent.service
-      systemctl enable nanoagent.service
+      echo "View logs with 'journalctl -fu microagent'">> /var/log/microagent.log
+      echo "$(microagent_systemd_conf)" > /etc/systemd/system/microagent.service
+      systemctl enable microagent.service
     elif [[ "$(init_system)" = "upstart" ]]; then
-      echo "$(nanoagent_upstart_conf)" > /etc/init/nanoagent.conf
+      echo "$(microagent_upstart_conf)" > /etc/init/microagent.conf
     fi
 
     # create update script
-    echo "$(nanoagent_update)" > /usr/local/bin/nanoagent-update
+    echo "$(microagent_update)" > /usr/local/bin/microagent-update
 
     # update permissions
-    chmod 755 /usr/local/bin/nanoagent-update
+    chmod 755 /usr/local/bin/microagent-update
   fi
 }
 
-start_nanoagent() {
+start_microagent() {
   # ensure the firewall service is started
   if [[ "$(init_system)" = "systemd" ]]; then
-    if [[ ! `service nanoagent status | grep "active (running)"` ]]; then
-      service nanoagent start
+    if [[ ! `service microagent status | grep "active (running)"` ]]; then
+      service microagent start
     fi
   elif [[ "$(init_system)" = "upstart" ]]; then
-    if [[ ! `service nanoagent status | grep start/running` ]]; then
-      service nanoagent start
+    if [[ ! `service microagent status | grep start/running` ]]; then
+      service microagent start
     fi
   fi
 }
 
 configure_modloader() {
   if [[ "$(init_system)" = "systemd" ]]; then
-    echo 'ip_vs' > /etc/modules-load.d/nanobox-ipvs.conf
+    echo 'ip_vs' > /etc/modules-load.d/microbox-ipvs.conf
   elif [[ "$(init_system)" = "upstart" ]]; then
     grep 'ip_vs' /tmpetc/modules &> /dev/null || echo 'ip_vs' >> /etc/modules
   fi
@@ -561,7 +566,7 @@ WantedBy=multi-user.target
 END
 }
 
-nanoagent_json() {
+microagent_json() {
   cat <<END
 {
   "host_id": "${ID}",
@@ -571,62 +576,62 @@ nanoagent_json() {
   "api_port":"8570",
   "route_http_port":"80",
   "route_tls_port":"443",
-  "data_file":"/var/db/nanoagent/bolt.db"
+  "data_file":"/var/db/microagent/bolt.db"
 }
 END
 }
 
-nanoagent_update() {
+microagent_update() {
   cat <<'END'
 #!/bin/bash
 
 set -e
 
 # extract installed version
-current=$(md5sum /usr/local/bin/nanoagent | awk '{printf $1}')
+current=$(md5sum /usr/local/bin/microagent | awk '{printf $1}')
 
 # download the latest checksum
 curl \
   -f \
   -k \
   -s \
-  -o /tmp/nanoagent.md5 \
-  https://d1ormdui8qdvue.cloudfront.net/nanoagent/linux/amd64/nanoagent-v2.md5
+  -o /tmp/microagent.md5 \
+  https://s3.amazonaws.com/tools.microbox.cloud/microagent/linux/$(arch)/microagent-v2.md5
 
 # compare latest with installed
-latest=$(cat /tmp/nanoagent.md5)
+latest=$(cat /tmp/microagent.md5)
 
 if [ ! "${current}" = "${latest}" ]; then
-  echo "Nanoagent is out of date, updating to latest"
+  echo "Microagent is out of date, updating to latest"
 
-  # stop the running Nanoagent
-  service nanoagent stop
+  # stop the running Microagent
+  service microagent stop
 
   # download the latest version
   curl \
     -f \
     -k \
-    -o /usr/local/bin/nanoagent \
-    https://d1ormdui8qdvue.cloudfront.net/nanoagent/linux/amd64/nanoagent-v2
+    -o /usr/local/bin/microagent \
+    https://s3.amazonaws.com/tools.microbox.cloud/microagent/linux/$(arch)/microagent-v2
 
   # update permissions
-  chmod 755 /usr/local/bin/nanoagent
+  chmod 755 /usr/local/bin/microagent
 
   # start the new version
-  service nanoagent start
+  service microagent start
 
   # move temporary md5
-  mv /tmp/nanoagent.md5 /var/nanobox/nanoagent.md5
+  mv /tmp/microagent.md5 /var/microbox/microagent.md5
 else
-  service nanoagent restart
-  echo "Nanoagent is up to date."
+  service microagent restart
+  echo "Microagent is up to date."
 fi
 END
 }
 
-nanoagent_upstart_conf() {
+microagent_upstart_conf() {
   cat <<'END'
-description "Nanoagent daemon"
+description "Microagent daemon"
 
 oom score never
 
@@ -637,20 +642,20 @@ respawn
 
 kill timeout 20
 
-exec su root -c '/usr/local/bin/nanoagent server --config /etc/nanoagent/config.json >> /var/log/nanoagent.log 2>&1'
+exec su root -c '/usr/local/bin/microagent server --config /etc/microagent/config.json >> /var/log/microagent.log 2>&1'
 END
 }
 
-nanoagent_systemd_conf() {
+microagent_systemd_conf() {
   cat <<'END'
 [Unit]
-Description=Nanoagent daemon
+Description=Microagent daemon
 After=syslog.target network.target redd.service
 
 [Service]
 User=root
 OOMScoreAdjust=-1000
-ExecStart=/usr/local/bin/nanoagent server --config /etc/nanoagent/config.json 2>&1
+ExecStart=/usr/local/bin/microagent server --config /etc/microagent/config.json 2>&1
 Restart=always
 
 [Install]
@@ -680,10 +685,10 @@ if [ ! -f /run/iptables ]; then
   # allow ssh connections from anywhere
   iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 
-  # allow nanoagent api connections
+  # allow microagent api connections
   iptables -A INPUT -p tcp --dport 8570 -j ACCEPT
 
-  # allow nanoagent ssh connections
+  # allow microagent ssh connections
   iptables -A INPUT -p tcp --dport 1289 -j ACCEPT
 
   # allow icmp packets
@@ -712,7 +717,7 @@ END
 
 firewall_upstart_conf() {
   cat <<'END'
-description "Nanobox firewall base lockdown"
+description "Microbox firewall base lockdown"
 
 start on runlevel [2345]
 
@@ -730,7 +735,7 @@ END
 firewall_systemd_conf() {
   cat <<'END'
 [Unit]
-Description=Nanobox firewall base lockdown
+Description=Microbox firewall base lockdown
 
 [Service]
 Type=oneshot
@@ -808,7 +813,7 @@ run start_modloader "Starting modloader"
 run configure_firewall "Configuring firewall"
 run start_firewall "Starting firewall"
 
-run install_nanoagent "Installing nanoagent"
-run start_nanoagent "Starting nanoagent"
+run install_microagent "Installing microagent"
+run start_microagent "Starting microagent"
 
 echo "+> Hold on to your butts"
