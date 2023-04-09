@@ -74,7 +74,7 @@ if [[ ! -f /usr/bin/docker ]]; then
       -o Dpkg::Options::=\"--force-confdef\" \
       -o Dpkg::Options::=\"--force-confold\" \
       install \
-      docker-engine=23.0.3-1~ubuntu.${version}~${release}"
+      docker-ce=23.0.3-1~ubuntu.${version}~${release}"
 
   # allow user to use docker without sudo needs to be conditional
   run_as_root "groupadd docker"
